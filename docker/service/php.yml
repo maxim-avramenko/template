@@ -1,0 +1,22 @@
+version: "3.6"
+services:
+  php:
+    image: "php-fpm:7.1"
+    container_name: "${PROJECT_NAME}_php"
+    build:
+      context: "./docker/dockerfile/php"
+      dockerfile: "./Dockerfile"
+      args:
+        USER: "${USER}"
+        USER_ID: "${USER_ID}"
+    user: "${USER}"
+    restart: always
+    volumes:
+      - ".:/app"
+    environment:
+      - "ENV=${ENV}"
+      - "PHP_IDE_CONFIG=${PHP_IDE_CONFIG}"
+      - "XDEBUG_CONFIG=${XDEBUG_CONFIG}"
+      - "DOMAIN=${DOMAIN}"
+    labels:
+      - "traefik.backend=php"

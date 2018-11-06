@@ -1,0 +1,30 @@
+version: "3.6"
+services:
+  openresty:
+    image: "openresty:latest"
+    restart: always
+    build:
+      context: "./docker/dockerfile/openresty"
+      dockerfile: "./Dockerfile"
+    volumes:
+      - "./docker/source/openresty/conf.d:/etc/nginx/conf.d"
+      - "./app/lua:/lua"
+      - "./app/arm/static:/static"
+      - "./app/html:/html"
+    expose:
+      - "80"
+    environment:
+      - "APP_ENV=${APP_ENV}"
+      - "DOMAIN=static.${DOMAIN}"
+      - "IMAGES_PWD=/static"
+      - "HTML_PWD=/html"
+      - "LUA_PWD=/lua"
+      - "LUA_CODE_CACHE=${LUA_CODE_CACHE}"
+    links:
+      - rabbitmq
+    labels:
+      - "traefik.backend=static"
+      - "traefik.frontend.rule=Host:static.${DOMAIN}"
+    networks:
+      - web
+    command: /bin/bash -c "envsubst '$${DOMAIN} $${IMAGES_PWD} $${HTML_PWD} $${LUA_PWD} $${LUA_CODE_CACHE}' < /etc/nginx/conf.d/conf.template > /etc/nginx/conf.d/default.conf && /usr/local/openresty/bin/openresty -g 'daemon off;'"

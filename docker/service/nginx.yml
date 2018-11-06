@@ -1,0 +1,25 @@
+version: "3.6"
+services:
+  nginx:
+    image: "nginx:latest"
+    restart: always
+    build:
+      context: "./docker/dockerfile/nginx"
+      dockerfile: "./Dockerfile"
+    volumes:
+      - "./html:/html"
+    expose:
+      - "80"
+    environment:
+      - "ENV=${ENV}"
+      - "DOMAIN=${DOMAIN}"
+      - "HTML_ERROR_PWD=/html/error"
+      - "PROJECT_PWD=${PROJECT_PWD}"
+    links:
+      - rabbitmq
+    labels:
+      - "traefik.backend=static"
+      - "traefik.frontend.rule=Host:${DOMAIN}"
+    networks:
+      - web
+    command: /bin/bash -c "envsubst '$${DOMAIN} $${PROJECT_PWD} $${HTML_ERROR_PWD}' < /etc/nginx/conf.d/conf.template > /etc/nginx/conf.d/default.conf && /usr/local/openresty/bin/openresty -g 'daemon off;'"
