@@ -1,15 +1,22 @@
-ENV_FILE = .env
+include .env
 
-all: check
+all:
+	docker-compose -f $(DOCKER_PWD)/service/traefik.yml config
 
-check:
-	if [ ! -f $(ENV_FILE) ]; then \
-		echo Please, run ./configure [ OPTIONS ] first; \
-	fi
+install:
+	echo $(APP_ENV)
 
-install: check
+build-no-cache:
+	docker-compose build --no-cache
 
+start:
+	docker-compose -f $(DOCKER_PWD)/service/traefik.yml up -d
 
+stop:
+	docker-compose -f $(DOCKER_PWD)/service/traefik.yml down
+
+ps:
+	docker-compose -f $(DOCKER_PWD)/service/traefik.yml ps
 
 clean:
-	echo "remove trash"
+	rm -rf .env docker-compose.yml

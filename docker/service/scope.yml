@@ -1,0 +1,20 @@
+version: "3.6"
+servises:
+  scope:
+    image: "weaveworks/scope:latest"
+    network_mode: "host"
+    pid: "host"
+    privileged: true
+    restart: always
+    labels:
+      - "works.weave.role=system"
+      - "traefik.backend=scope"
+      - "traefik.frontend.rule=Host:scope.${DOMAIN}"
+    ports:
+      - "4040:4040"
+    environment:
+      - "DOCKER_SOCK_FILE=/var/run/docker.sock"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+    command:
+      - "--probe.docker=true"

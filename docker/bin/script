@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -e
+APP_ENV=
+PROJECT_PWD=
+PROJECT_NAME=
+
+# подтягиваем переменные
+. ${PROJECT_PWD}"/.env"
+
+traceback() {
+	# Hide the traceback() call.
+	local -i start=$(( ${1:-0} + 1 ))
+	local -i end=${#BASH_SOURCE[@]}
+	local -i i=0
+	local -i j=0
+
+    if [[ ${VERBOSE} == true ]]; then
+        echo "Traceback (last called is first):" 1>&2
+    fi
+
+	for ((i=${start}; i < ${end}; i++)); do
+		j=$(( $i - 1 ))
+		local function="${FUNCNAME[$i]}"
+		local file="${BASH_SOURCE[$i]}"
+		local line="${BASH_LINENO[$j]}"
+		if [[ ${VERBOSE} == true ]]; then
+            echo "     ${function}() in ${file}:${line}" 1>&2
+        fi
+	done
+}
+
+on_error() {
+    local _ec="$?"
+    local _cmd="${BASH_COMMAND:-unknown}"
+    traceback 1
+    _showed_traceback=t
+    if [[ ${VERBOSE} == true ]]; then
+        echo "The command ${_cmd} exited with exit code ${_ec}." 1>&2
+    fi
+
+}
+trap on_error ERR
+
+
+on_exit() {
+    if [[ ${VERBOSE} == true ]]; then
+        echo "Cleaning up before Exit ..."
+    fi
+    local _ec="$?"
+    if [[ $_ec != 0 && "${_showed_traceback}" != t ]]; then
+        traceback 1
+    fi
+}
+trap on_exit EXIT

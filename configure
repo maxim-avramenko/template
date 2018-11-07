@@ -15,30 +15,31 @@ type getopt >/dev/null 2>&1 || { echo >&2 "I require getopt but it's not install
 OS_TYPE="unknown"
 if [[ `uname` == 'Linux' ]]; then
    OS_TYPE="Linux"
-elif [[ `uname` == 'MINGW64_NT-10.0' ]]; then
-   OS_TYPE="Windows"
 elif [[ `uname` == 'Darwin' ]]; then
    OS_TYPE="Darwin"
 fi
 
 if [ ${OS_TYPE} == "unknown" ]; then
-    echo "I require Linux or Darwin or Windows OS but current type of OS is unknown.  Aborting."; exit 1;
+    echo "I require Linux or Darwin OS but current type of OS is unknown.  Aborting."; exit 1;
 fi
 
 # environment variables and .env file path
 APP_ENV="dev"
 ENV="development"
 ENV_FILE_PATH=".env"
-
 PROJECT_PWD=${PWD}
 PROJECT_NAME=${PWD##*/}
+IMAGE_TAG="latest"
 
 # user binaries path and list
 USER_BINARIES_PATH=`systemd-path user-binaries`
 USER_BINARIES=$(ls ${USER_BINARIES_PATH})
 
+# docker folder and path
+DOCKER_PWD=${PROJECT_PWD}
+
 # script
-SCRIPT_TEMPLATE_NAME="template.sh"
+SCRIPT_SOURCE=${DOCKER_PWD}"/bin/script"
 SCRIPT_NAME=${PROJECT_NAME}
 SCRIPT_INSTALL_PATH=""${USER_BINARIES_PATH}"/"${SCRIPT_NAME}""
 
@@ -114,7 +115,7 @@ fi
 
 # http://bahmanm.com/blogs/command-line-options-how-to-parse-in-bash-using-getopt
 # set long and short keys
-OPTS=`getopt -o vdhS:P:D:E: --long verbose,debug,help,script-name:,project-name:,domain-name:,environment: -- "$@"`
+OPTS=`getopt -o vdhS:P:D:E: --long verbose,debug,help,script-name:,project-name:,domain-name:,environment:,service-template:,service-name:,app-web-root:,config-template-name:,image-tag: -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -193,25 +194,23 @@ while true; do
   esac
 done
 
-
-
 # запускаем команды поочереди, в том порядке в котором запросил пользователь
-#if [[ "${#PROCESS_LIST[@]}" > 0 ]]; then
-#    #echo "Команды запускаются по порядку как указано в команде запуска!"
-#    for i in "${PROCESS_LIST[@]}"
-#    do
-#        case "${i}" in
-#            help)
-#                help-message
-#                exit 0
-#            ;;
-#        esac
-#        #echo "Выполняем команду: ${i}"
-#        "${i}"
-#    done
-#else
-#    help-message
-#    exit 0
-#fi
+if [[ "${#PROCESS_LIST[@]}" > 0 ]]; then
+    #echo "Команды запускаются по порядку как указано в команде запуска!"
+    for i in "${PROCESS_LIST[@]}"
+    do
+        case "${i}" in
+            help)
+                help-message
+                exit 0
+            ;;
+        esac
+        #echo "Выполняем команду: ${i}"
+        "${i}"
+    done
+else
+    help-message
+    exit 0
+fi
 
 exit 0

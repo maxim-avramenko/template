@@ -1,0 +1,15 @@
+version: '3.6'
+services:
+  portainer:
+    image: "portainer/portainer"
+    ports:
+      - "9999:9000"
+    restart: always
+    command: "-H unix:///var/run/docker.sock"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "portainer_data:/data"
+volumes:
+  portainer_data:
+    driver: local
+

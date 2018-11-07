@@ -4,7 +4,7 @@ services:
     image: "php-fpm:7.1"
     container_name: "${PROJECT_NAME}_php"
     build:
-      context: "./docker/dockerfile/php"
+      context: "${DOCKER_PWD}/dockerfile/php"
       dockerfile: "./Dockerfile"
       args:
         USER: "${USER}"

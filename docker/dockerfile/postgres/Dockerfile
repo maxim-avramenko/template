@@ -4,10 +4,6 @@ COPY ./utils /utils
 
 RUN chmod +x -R /utils
 
-#COPY ./service/.pgpass /root
-
-#RUN chmod 0600 /root/.pgpass
-
 RUN apt-get update && apt-get install -y \
     nano \
     zip \
