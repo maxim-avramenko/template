@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# ./configure
 set -e
 #######################################################
 # Application configuration script                    #
@@ -128,32 +129,40 @@ DOCKER_HOST_IP=$(docker network inspect --format='{{range .IPAM.Config}}{{printl
 XDEBUG_CONFIG="remote_host="${DOCKER_HOST_IP}
 PHP_IDE_CONFIG="serverName="${PROJECT_NAME}".local"
 
-# list of all available services
-AVAILABLE_SERVICE_LIST=()
+# list of all available services, this is a set of all available services for project docker-compose.yml configuration.
+AVAILABLE_SERVICES=()
+
+# project docker-compose services list, this is a set of services to run the project.
+PROJECT_SERVICES=()
 
 # excluded services from docker-compose config
 EXCLUDED_SERVICES=()
 
 # user service list
-USER_SERVICE_LIST=()
+USER_SERVICES=()
 
 # final service list for docker-compose config
 SERVICE_LIST=()
 
 # this function get list of available services from docker/service folder
-get-available-services-list()
+get-available-services()
 {
     for file in `ls ${SERVICE_PWD}`; do
-        AVAILABLE_SERVICE_LIST=(${AVAILABLE_SERVICE_LIST[@]} $(echo $(basename "${file}") | sed 's/.yml//'))
+        AVAILABLE_SERVICES=(${AVAILABLE_SERVICES[@]} $(echo $(basename "${file}") | sed 's/.yml//'))
     unset file
     done
 }
 
-show-available-services-list()
+echo-available-services()
 {
-    get-available-services-list
-    echo ${AVAILABLE_SERVICE_LIST[@]}
+    get-available-services
+    echo
+    echo "Available services: "${AVAILABLE_SERVICES[@]}
+    echo
+    echo "Example: ./configure [OPTIONS] --services=\"${AVAILABLE_SERVICES[1]} ${AVAILABLE_SERVICES[3]} ${AVAILABLE_SERVICES[5]}\""
 }
+
+#
 
 # user name and user id
 USER="${USER}"
@@ -163,12 +172,18 @@ USER_ID=`id -u "${USER}"`
 if [ ! -f ${ENV_FILE_PATH} ]; then
     > ${ENV_FILE_PATH}
 else
+#    cp ${ENV_FILE_PATH} ${ENV_FILE_PATH}.old
     . ./.env
 fi
 
+# удаление свойства по шаблону
+#array0=( первый второй третий )
+#array0=( "${array0[@]}" "новый1" "новый2")
+#array0=( ${array0[@]/новый1/} )
+
 # http://bahmanm.com/blogs/command-line-options-how-to-parse-in-bash-using-getopt
 # set up long and short keys
-OPTS=`getopt -o vdhN:P:D:E:l,X:S: --long verbose,debug,help,script-name:,project-name:,domain-name:,environment:,exclude-services:,list-services,services: -- "$@"`
+OPTS=`getopt -o vdhN:P:D:E:l,X:S: --long verbose,debug,help,script-name:,project-name:,domain-name:,environment:,exclude-services:,available-services,services: -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -186,12 +201,14 @@ while true; do
         shift
     ;;
     -h|--help)
-        HELP=true
+        help-message
         shift
+        exit 0
     ;;
-    -l|--list-services)
-        show-available-services-list
+    -l|--available-services)
+        echo-available-services
         shift
+        exit 0
     ;;
     -N|--script-name)
         case "$2" in
@@ -256,7 +273,7 @@ while true; do
                 shift 2
             ;;
             *)
-                USER_SERVICE_LIST=($2)
+                USER_SERVICES=($2)
                 shift 2
             ;;
         esac
@@ -288,7 +305,10 @@ if [[ "${#PROCESS_LIST[@]}" > 0 ]]; then
         "${i}"
     done
 else
-    help-message
+    echo "Get more information and examples, run:"
+    echo
+    echo "      ./configure -h, --help, help"
+    echo
     exit 0
 fi
 
