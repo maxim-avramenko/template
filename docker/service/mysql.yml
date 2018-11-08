@@ -1,0 +1,22 @@
+version: "3.6"
+  mysql:
+    image: "${PROJECT_NAME}-mysql:8.0"
+    container_name: "${PROJECT_NAME}_mysql"
+    restart: always
+    build:
+      context: "${DOCKERFILE_PWD}/mysql"
+      dockerfile: "./Dockerfile"
+    volumes:
+      - "mysql_db:/var/lib/mysql"
+      - "mysql_db_backup:/backup/"
+    env_file:
+      - "${DOCKERFILE_PWD}/mysql/env/db.env"
+    networks:
+      - web
+    labels:
+      - "traefik.backend=mysql"
+volumes:
+  mysql_db:
+    driver: local
+  mysql_db_backup:
+    driver: local

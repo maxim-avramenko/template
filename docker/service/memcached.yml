@@ -1,0 +1,12 @@
+version: "3.6"
+services:
+  memcached:
+    image: "memcached:latest"
+    build:
+      context: "${DOCKERFILE_PWD}/memcached"
+      dockerfile: "./Dockerfile"
+    labels:
+      - "traefik.backend=memcached"
+    restart: always
+    expose:
+      - "11211"

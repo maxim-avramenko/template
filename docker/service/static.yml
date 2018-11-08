@@ -1,16 +1,15 @@
 version: "3.6"
 services:
   static:
-    image: "static:latest"
+    image: "${PROJECT_NAME}-static:latest"
     restart: always
     build:
-      context: "${DOCKER_PWD}/dockerfile/openresty"
+      context: "${DOCKERFILE_PWD}/openresty"
       dockerfile: "./Dockerfile"
     volumes:
-      - "./docker/source/openresty/conf.d:/etc/nginx/conf.d"
-      - "./app/lua:/lua"
-      - "./app/arm/static:/static"
-      - "./app/html:/html"
+      - "${DOCKERFILE_PWD}/openresty/conf.d:/etc/nginx/conf.d"
+      - "${APP_PWD}/lua:/lua"
+      - "${APP_PWD}/html:/html"
     expose:
       - "80"
     environment:
@@ -19,7 +18,7 @@ services:
       - "IMAGES_PWD=/static"
       - "HTML_PWD=/html"
       - "LUA_PWD=/lua"
-      - "LUA_CODE_CACHE=${LUA_CODE_CACHE}"
+      - "LUA_CODE_CACHE=no"
     labels:
       - "traefik.backend=static"
       - "traefik.frontend.rule=Host:static.${DOMAIN}"

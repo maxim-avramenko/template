@@ -1,45 +1,122 @@
 #!/usr/bin/env bash
-
+set -e
 #######################################################
 # Application configuration script                    #
 # create and update .env for docker-compose.yml files #
 #######################################################
 
-# executable check
-type docker >/dev/null 2>&1 || { echo >&2 "I require docker but it's not installed.  Aborting."; exit 1; }
-type docker-compose >/dev/null 2>&1 || { echo >&2 "I require docker-compose but it's not installed.  Aborting."; exit 1; }
-type make >/dev/null 2>&1 || { echo >&2 "I require make but it's not installed.  Aborting."; exit 1; }
-type getopt >/dev/null 2>&1 || { echo >&2 "I require getopt but it's not installed.  Aborting."; exit 1; }
+# show help message function
+help-message()
+{
+echo "
+Usage: ./configure [OPTION]...
 
-# OS type [ Linux | Windows | Darwin ]
-OS_TYPE="unknown"
-if [[ `uname` == 'Linux' ]]; then
-   OS_TYPE="Linux"
-elif [[ `uname` == 'Darwin' ]]; then
-   OS_TYPE="Darwin"
-fi
+Create or update .env file for docker-compose.yml configuration.
 
-if [ ${OS_TYPE} == "unknown" ]; then
-    echo "I require Linux or Darwin OS but current type of OS is unknown.  Aborting."; exit 1;
-fi
+Mandatory arguments to long options are mandatory for short options too.
+
+  -d, --debug                       run config in debug mode
+
+  -D, --domain-name[=DOMAIN]        set up new domain-name for application
+                                    example: --domain-name=domain-name.local
+                                             -Ddomain-name.local
+                                    default: ${DOMAIN}
+
+  -E, --environment=[=APP_ENV]      set up application environment variable
+                                    example: --environment=dev
+                                             --environment=prod
+                                    default value: 'dev'
+
+  -h, --help                        display this help and exit
+
+  -l, --list-services               display list of all available docker services
+
+  -N, --script-name[=SCRIPT_NAME]   set up script-name
+
+  -P, --project-name[=PROJECT_NAME] set up project name [PROJECT_NAME]
+                                    example: -Nproject_name
+                                    default: ${PROJECT_NAME}
+
+  -S, --services[=LIST]             list of required services for project
+                                    --services=\"nginx php mysql traefik network\"
+                                    use only this services in docker-compose
+
+  -v, --verbose                     run config in verbose mode
+
+  -X, --exclude-services[=LIST]     specify excluded list of services
+                                    example: --exclude-services=\"portainer php\"
+                                    services \"portainer php\" will be excluded
+                                    Default: all services will be include
+
+
+Example of usage with long, short and no keys:
+
+  ./configure --list-services       display list of all available services
+
+  ./configure                       with no keys will create .env file with
+                                    default values in environment variables
+                                    domain-name ${PROJECT_NAME}.local
+                                    application environment = ${APP_ENV}
+                                    project name = ${PROJECT_NAME}
+                                    script name = ${SCRIPT_NAME}
+                                    all services will be include to config
+
+  ./configure -Dsite.local \        create .env file with domain 'site.local'
+              -Edev \               'dev' environment
+              -Psite \              'site' project name
+              -Ssite \              'site' script name
+              -X\"mysql traefik\"     without services mysql and traefik
+              -v                    and run configuration process in verbose
+
+This command is exactly the same as the previous one, but here we indicate the list of services we need: nginx php mysql traefik network
+
+  ./configure -Dsite.local -Edev -Psite -Ssite -v --services=\"nginx php mysql traefik network\"
+
+This is the same as above but with long keys and here we indicate the list of services we need to exclude:
+
+  ./configure --domain-name=site.local --environment=dev --project-name=site --script-name=site --verbose --exclude-services=\"mysql portainer scope\"
+
+"
+}
+
+# project path and folder name (current folder name is default project name)
+PROJECT_PWD=${PWD}
+PROJECT_NAME=${PWD##*/}
+
+# docker and application folder and path
+APP_FOLDER="app"
+DOCKER_FOLDER="docker"
+DOCKERFILE_FOLDER="dockerfile"
+LOGS_FOLDER="logs"
+SERVICE_FOLDER="service"
+SCRIPT_SOURCE_FOLDER="bin"
+SCRIPT_SOURCE_NAME="script"
+CHECK_SCRIPT_NAME="check"
+
+APP_PWD=${PROJECT_PWD}"/"${APP_FOLDER}
+DOCKER_PWD=${PROJECT_PWD}"/"${DOCKER_FOLDER}
+DOCKERFILE_PWD=${DOCKER_PWD}"/"${DOCKERFILE_FOLDER}
+LOGS_PWD=${DOCKER_PWD}"/"${LOGS_FOLDER}
+SERVICE_PWD=${DOCKER_PWD}"/"${SERVICE_FOLDER}
+SCRIPT_SOURCE_PWD=${DOCKER_PWD}"/"${SCRIPT_SOURCE_FOLDER}
+SCRIPT_SOURCE=${SCRIPT_SOURCE_PWD}"/"${SCRIPT_SOURCE_NAME}
+CHECK_SCRIPT=${SCRIPT_SOURCE_PWD}"/"${CHECK_SCRIPT_NAME}
+
+# additional software executable check
+chmod +x ${CHECK_SCRIPT} && ${SHELL} ${CHECK_SCRIPT}
 
 # environment variables and .env file path
 APP_ENV="dev"
 ENV="development"
 ENV_FILE_PATH=".env"
-PROJECT_PWD=${PWD}
-PROJECT_NAME=${PWD##*/}
 IMAGE_TAG="latest"
 
-# user binaries path and list
+# user binaries path where user store his apps
 USER_BINARIES_PATH=`systemd-path user-binaries`
+# list of user binaries applications
 USER_BINARIES=$(ls ${USER_BINARIES_PATH})
 
-# docker folder and path
-DOCKER_PWD=${PROJECT_PWD}
-
 # script
-SCRIPT_SOURCE=${DOCKER_PWD}"/bin/script"
 SCRIPT_NAME=${PROJECT_NAME}
 SCRIPT_INSTALL_PATH=""${USER_BINARIES_PATH}"/"${SCRIPT_NAME}""
 
@@ -51,60 +128,36 @@ DOCKER_HOST_IP=$(docker network inspect --format='{{range .IPAM.Config}}{{printl
 XDEBUG_CONFIG="remote_host="${DOCKER_HOST_IP}
 PHP_IDE_CONFIG="serverName="${PROJECT_NAME}".local"
 
-# show help message function
-help-message()
+# list of all available services
+AVAILABLE_SERVICE_LIST=()
+
+# excluded services from docker-compose config
+EXCLUDED_SERVICES=()
+
+# user service list
+USER_SERVICE_LIST=()
+
+# final service list for docker-compose config
+SERVICE_LIST=()
+
+# this function get list of available services from docker/service folder
+get-available-services-list()
 {
-echo "
-Usage: ./configure [OPTION]...
-
-Create or update .env file for docker-compose.yml file with set of environment variables and values.
-
-Mandatory arguments to long options are mandatory for short options too.
-  -d, --debug                       run config in debug mode
-  -D, --domain-name[=DOMAIN]        set new domain-name for project
-                                    example: --domain-name=domain-name.local
-                                             -Ddomain-name.local
-                                    default: ${PROJECT_NAME}.local
-
-  -E, --environment=[=APP_ENV]      set value for APP_ENV environment variable
-                                    example: --environment=dev
-                                             --environment=prod
-                                    default: dev
-
-  -h, --help                        show this help
-
-  -P, --project-name[=PROJECT_NAME] set project name [PROJECT_NAME]
-                                    example: -Nproject_name
-                                    default: ${PROJECT_NAME}
-
-  -S|--script-name[=SCRIPT_NAME]    set script-name
-
-  -v|--verbose                      run config in verbose mode
-
-
-Example of usage with long, short and no keys:
-
-  ./configure                       with no keys will create .env file with
-                                    default values in environment variables
-                                    domain-name ${PROJECT_NAME}.local
-                                    application environment = ${APP_ENV}
-                                    project name = ${PROJECT_NAME}
-                                    script name = ${SCRIPT_NAME}
-
-  ./configure -Dsite.local \        create .env file with domain 'site.local'
-              -Edev \               'dev' environment
-              -Psite \              'site' project name
-              -Ssite \              'site' script name
-              -v                    and run configuration process in verbose
-
-  ./configure -Dsite.local -Edev -Psite -Ssite -v
-
-This is the same as above but with long keys:
-
-  ./configure --domain-name=site.local --environment=dev --project-name=site --script-name=site --verbose
-
-"
+    for file in `ls ${SERVICE_PWD}`; do
+        AVAILABLE_SERVICE_LIST=(${AVAILABLE_SERVICE_LIST[@]} $(echo $(basename "${file}") | sed 's/.yml//'))
+    unset file
+    done
 }
+
+show-available-services-list()
+{
+    get-available-services-list
+    echo ${AVAILABLE_SERVICE_LIST[@]}
+}
+
+# user name and user id
+USER="${USER}"
+USER_ID=`id -u "${USER}"`
 
 # create .enf file or get values from .enf file
 if [ ! -f ${ENV_FILE_PATH} ]; then
@@ -114,8 +167,8 @@ else
 fi
 
 # http://bahmanm.com/blogs/command-line-options-how-to-parse-in-bash-using-getopt
-# set long and short keys
-OPTS=`getopt -o vdhS:P:D:E: --long verbose,debug,help,script-name:,project-name:,domain-name:,environment:,service-template:,service-name:,app-web-root:,config-template-name:,image-tag: -- "$@"`
+# set up long and short keys
+OPTS=`getopt -o vdhN:P:D:E:l,X:S: --long verbose,debug,help,script-name:,project-name:,domain-name:,environment:,exclude-services:,list-services,services: -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -136,7 +189,11 @@ while true; do
         HELP=true
         shift
     ;;
-    -S|--script-name)
+    -l|--list-services)
+        show-available-services-list
+        shift
+    ;;
+    -N|--script-name)
         case "$2" in
             "")
                 shift 2
@@ -182,10 +239,31 @@ while true; do
             ;;
         esac
     ;;
+    -X|--exclude-services)
+        case "$2" in
+            "")
+                shift 2
+            ;;
+            *)
+                EXCLUDED_SERVICES=($2)
+                shift 2
+            ;;
+        esac
+    ;;
+    -S|--services)
+        case "$2" in
+            "")
+                shift 2
+            ;;
+            *)
+                USER_SERVICE_LIST=($2)
+                shift 2
+            ;;
+        esac
+    ;;
     --)
         shift
         PROCESS_LIST=("$@")
-        #echo "PROCESS_LIST="${PROCESS_LIST[@]}
         break
     ;;
     *)
@@ -194,9 +272,11 @@ while true; do
   esac
 done
 
+# recreate .env file with updated environment variables
+
+
 # запускаем команды поочереди, в том порядке в котором запросил пользователь
 if [[ "${#PROCESS_LIST[@]}" > 0 ]]; then
-    #echo "Команды запускаются по порядку как указано в команде запуска!"
     for i in "${PROCESS_LIST[@]}"
     do
         case "${i}" in
@@ -205,7 +285,6 @@ if [[ "${#PROCESS_LIST[@]}" > 0 ]]; then
                 exit 0
             ;;
         esac
-        #echo "Выполняем команду: ${i}"
         "${i}"
     done
 else

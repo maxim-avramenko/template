@@ -12,6 +12,8 @@ servises:
       - "traefik.frontend.rule=Host:scope.${DOMAIN}"
     ports:
       - "4040:4040"
+    expose:
+      - "4040"
     environment:
       - "DOCKER_SOCK_FILE=/var/run/docker.sock"
     volumes:

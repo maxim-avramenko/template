@@ -1,10 +1,10 @@
 version: "3.6"
 services:
   php:
-    image: "php-fpm:7.1"
+    image: "${PROJECT_NAME}-php:7.1-fpm"
     container_name: "${PROJECT_NAME}_php"
     build:
-      context: "${DOCKER_PWD}/dockerfile/php"
+      context: "${DOCKERFILE_PWD}/php"
       dockerfile: "./Dockerfile"
       args:
         USER: "${USER}"
@@ -12,11 +12,15 @@ services:
     user: "${USER}"
     restart: always
     volumes:
-      - ".:/app"
+      - "${APP_PWD}:/app"
+      - "php_tmp:/tmp"
     environment:
-      - "ENV=${ENV}"
+      - "APP_ENV=${APP_ENV}"
       - "PHP_IDE_CONFIG=${PHP_IDE_CONFIG}"
       - "XDEBUG_CONFIG=${XDEBUG_CONFIG}"
       - "DOMAIN=${DOMAIN}"
     labels:
       - "traefik.backend=php"
+volumes:
+  php_tmp:
+    driver: local

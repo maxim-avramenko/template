@@ -1,18 +1,17 @@
 version: "3.6"
 services:
   postgres:
-    image: "postgres:latest"
-    container_name: "postgres"
+    image: "${PROJECT_NAME}-postgres:11"
+    container_name: "${PROJECT_NAME}_postgres"
     restart: always
     build:
-      context: "${DOCKER_PWD}/dockerfile/postgres"
+      context: "${DOCKERFILE_PWD}/postgres"
       dockerfile: "./Dockerfile"
     volumes:
       - "postgres_db:/var/lib/postgresql/data"
       - "postgres_db_backup:/backup/"
     env_file:
-      - "${DOCKER_PDW}/source/postgres/env/db_living.env"
-      - "${DOCKER_PDW}/source/postgres/env/selectel.env"
+      - "${DOCKERFILE_PWD}/postgres/env/db.env"
     environment:
       - "APP_ENV=${APP_ENV}"
     expose:
@@ -21,6 +20,6 @@ services:
       - "traefik.backend=postgres"
 volumes:
   postgres_db:
-    external: false
+    driver: local
   postgres_db_backup:
-    external: false
+    driver: local

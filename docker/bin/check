@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+
+##############################################################################################
+# First lets check OS type additional software that is necessary for the application to work #
+# В начале проверяем в какой операционной системе произошел запуск скрипта, а так же наличие #
+# необходимого программного обеспечения для запуска и работы приложения                      #
+##############################################################################################
+
+# OS type [ Linux | Windows | Darwin ]
+OS_TYPE="unknown"
+if [[ `uname` == 'Linux' ]]; then
+   OS_TYPE="Linux"
+elif [[ `uname` == 'Darwin' ]]; then
+   OS_TYPE="Darwin"
+fi
+
+if [ ${OS_TYPE} == "unknown" ]; then
+    echo "I require Linux or Darwin OS but current OS type is unknown. Aborting. exit code: 1"; exit 1;
+fi
+
+# list of additional software that is necessary for the application to work
+DEPENDENCE_LIST=()
+
+# additional software executable check
+type docker >/dev/null 2>&1 || DEPENDENCE_LIST=(${DEPENDENCE_LIST[@]} "docker");
+type docker-compose >/dev/null 2>&1 || DEPENDENCE_LIST=(${DEPENDENCE_LIST[@]} "docker-compose");
+type make >/dev/null 2>&1 || DEPENDENCE_LIST=(${DEPENDENCE_LIST[@]} "make");
+type getopt >/dev/null 2>&1 || DEPENDENCE_LIST=(${DEPENDENCE_LIST[@]} "getopt");
+
+# install docker message
+message-no-docker()
+{
+    echo "Install 'Docker':"
+    if [ ${OS_TYPE} == 'Darwin' ]; then
+        echo "MacOS: https://docs.docker.com/docker-for-mac/install/"
+    elif [ ${OS_TYPE} == 'Linux' ]; then
+        echo "  CentOS: https://docs.docker.com/install/linux/docker-ce/centos/"
+        echo "  Debian: https://docs.docker.com/install/linux/docker-ce/debian/"
+        echo "  Fedora: https://docs.docker.com/install/linux/docker-ce/fedora/"
+        echo "  Ubuntu: https://docs.docker.com/install/linux/docker-ce/ubuntu/"
+        echo "  Binaries: https://docs.docker.com/install/linux/docker-ce/binaries/"
+        echo "  Post-installation steps for Linux: https://docs.docker.com/install/linux/linux-postinstall/"
+    fi
+    echo
+}
+
+# install docker-compose message
+message-no-docker-compose()
+{
+    echo "Install 'Docker Compose':"
+    echo "  Use this instructions: https://docs.docker.com/compose/install/"
+    echo
+}
+
+# install make message
+message-no-make()
+{
+    echo "Install 'make and gcc':"
+    if [ ${OS_TYPE} == 'Darwin' ]; then
+        echo "  MacOS: https://stackoverflow.com/questions/10265742/how-to-install-make-and-gcc-on-a-mac"
+    elif [ ${OS_TYPE} == 'Linux' ]; then
+        echo "  CentOS: sudo yum group install 'Development Tools'"
+        echo "  Ubuntu/Debian: sudo apt-get update && apt-get install build-essential"
+        echo "  Fedora: dnf group install 'Development Tools'"
+    fi
+    echo
+}
+
+# install getopt message
+message-no-getopt()
+{
+    echo "Install 'getopt':"
+    if [ ${OS_TYPE} == 'Darwin' ]; then
+        echo "  MacOS: brew install gnu-getopt"
+    elif [ ${OS_TYPE} == 'Linux' ]; then
+        echo "  Ubuntu/Debian: sudo apt-get update && apt-get install util-linux"
+        echo "  CentOS: sudo yum install util-linux"
+        echo "  Fedora: dnf group install util-linux"
+    fi
+    echo
+}
+
+# additional software executable check result list
+if [[ "${#DEPENDENCE_LIST[@]}" > 0 ]]; then
+    echo "ERROR:"
+    echo "I require additional software but it's not installed."
+    echo
+    for i in "${DEPENDENCE_LIST[@]}"
+    do
+        case "${i}" in
+            docker )
+                message-no-docker
+            ;;
+            docker-compose )
+                message-no-docker-compose
+            ;;
+            make )
+                message-no-make
+            ;;
+            getopt )
+                message-no-getopt
+            ;;
+        esac
+    done
+    echo "Aborting. exit code: 1"
+    exit 1
+fi
