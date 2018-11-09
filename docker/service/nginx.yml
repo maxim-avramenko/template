@@ -21,4 +21,4 @@ services:
     labels:
       - "traefik.backend=nginx"
       - "traefik.frontend.rule=Host:${DOMAIN}"
-    command: /bin/bash -c "envsubst '$${DOMAIN} $${APP_WEB_ROOT} $${HTML_ERROR_PWD}' < /etc/nginx/conf.d/template/${CONFIG_TEMPLATE_NAME}.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    command: /bin/bash -c "envsubst '$${DOMAIN} $${APP_WEB_ROOT} $${HTML_ERROR_PWD}' < /etc/nginx/conf.d/template/$${CONFIG_TEMPLATE_NAME}.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"

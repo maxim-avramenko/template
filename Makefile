@@ -1,7 +1,7 @@
 include .env
 
 all:
-	docker-compose -f $(SERVISE_PWD)/traefik.yml -f $(SERVISE_PWD)/nginx.yml -f $(SERVISE_PWD)/php.yml -f $(SERVISE_PWD)/network.yml config
+	docker-compose $(PROJECT_SERVICES) config
 
 install:
 	echo $(APP_ENV)

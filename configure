@@ -129,9 +129,6 @@ DOCKER_HOST_IP=$(docker network inspect --format='{{range .IPAM.Config}}{{printl
 XDEBUG_CONFIG="remote_host="${DOCKER_HOST_IP}
 PHP_IDE_CONFIG="serverName="${PROJECT_NAME}".local"
 
-# list of all available services, this is a set of all available services for project docker-compose.yml configuration.
-AVAILABLE_SERVICES=()
-
 # project docker-compose services list, this is a set of services to run the project.
 PROJECT_SERVICES=()
 
@@ -142,27 +139,20 @@ EXCLUDED_SERVICES=()
 USER_SERVICES=()
 
 # final service list for docker-compose config
-SERVICE_LIST=()
+SERVICES=()
 
 # this function get list of available services from docker/service folder
 get-available-services()
 {
+    local SERVICES_LIST=()
     for file in `ls ${SERVICE_PWD}`; do
-        AVAILABLE_SERVICES=(${AVAILABLE_SERVICES[@]} $(echo $(basename "${file}") | sed 's/.yml//'))
+        SERVICES_LIST=(${SERVICES_LIST[@]} $(echo $(basename "${file}") | sed 's/.yml//'))
     unset file
     done
+    echo ${SERVICES_LIST[@]}
 }
-
-echo-available-services()
-{
-    get-available-services
-    echo
-    echo "Available services: "${AVAILABLE_SERVICES[@]}
-    echo
-    echo "Example: ./configure [OPTIONS] --services=\"${AVAILABLE_SERVICES[1]} ${AVAILABLE_SERVICES[3]} ${AVAILABLE_SERVICES[5]}\""
-}
-
-#
+# list of all available services, this is a set of all available services for project docker-compose.yml configuration.
+AVAILABLE_SERVICES=($(get-available-services))
 
 # user name and user id
 USER="${USER}"
@@ -172,14 +162,8 @@ USER_ID=`id -u "${USER}"`
 if [ ! -f ${ENV_FILE_PATH} ]; then
     > ${ENV_FILE_PATH}
 else
-#    cp ${ENV_FILE_PATH} ${ENV_FILE_PATH}.old
-    . ./.env
+. ./.env
 fi
-
-# удаление свойства по шаблону
-#array0=( первый второй третий )
-#array0=( "${array0[@]}" "новый1" "новый2")
-#array0=( ${array0[@]/новый1/} )
 
 # http://bahmanm.com/blogs/command-line-options-how-to-parse-in-bash-using-getopt
 # set up long and short keys
@@ -206,7 +190,11 @@ while true; do
         exit 0
     ;;
     -l|--available-services)
-        echo-available-services
+        echo
+        echo "Available services: "${AVAILABLE_SERVICES[@]}
+        echo
+        echo "Example: ./configure [OPTIONS] --services=\"${AVAILABLE_SERVICES[@]}\""
+        echo
         shift
         exit 0
     ;;
@@ -263,6 +251,14 @@ while true; do
             ;;
             *)
                 EXCLUDED_SERVICES=($2)
+                if [ ${#EXCLUDED_SERVICES[@]} > 0 ]; then
+                    SERVICES=$(get-available-services)
+                    for service in ${EXCLUDED_SERVICES[@]}
+                    do
+                        SERVICES=( ${SERVICES[@]/${service}/} )
+                        unset service
+                    done
+                fi
                 shift 2
             ;;
         esac
@@ -274,6 +270,10 @@ while true; do
             ;;
             *)
                 USER_SERVICES=($2)
+                if [ ${#USER_SERVICES[@]} > 0 ]; then
+                    # нужна проверка не ошибся ли пользователь в названии сервиса
+                    SERVICES=${USER_SERVICES[@]}
+                fi
                 shift 2
             ;;
         esac
@@ -289,8 +289,42 @@ while true; do
   esac
 done
 
-# recreate .env file with updated environment variables
+if [ ${#SERVICES[@]} == 0 ]; then
+    SERVICES=${AVAILABLE_SERVICES[@]}
+fi
 
+if [ ${#SERVICES[@]} > 0 ]; then
+    for service in ${SERVICES[@]}
+    do
+        PROJECT_SERVICES=( ${PROJECT_SERVICES[@]} "-f "${SERVICE_PWD}"/"${service}".yml" )
+        unset service
+    done
+fi
+
+# create .env file with updated environment variables
+echo "APP_ENV=${APP_ENV}
+PROJECT_NAME=${PWD##*/}
+NETWORK=${PROJECT_NAME}
+DOMAIN=${DOMAIN}
+PROJECT_PWD=${PWD}
+APP_PWD=${APP_PWD}
+DOCKER_PWD=${DOCKER_PWD}
+DOCKERFILE_PWD=${DOCKERFILE_PWD}
+LOGS_PWD=${LOGS_PWD}
+SERVICE_PWD=${SERVICE_PWD}
+SCRIPT_SOURCE_PWD=${SCRIPT_SOURCE_PWD}
+SCRIPT_SOURCE=${SCRIPT_SOURCE}
+IMAGE_TAG=${IMAGE_TAG}
+SCRIPT_NAME=${SCRIPT_NAME}
+DOCKER_HOST_IP=${DOCKER_HOST_IP}
+XDEBUG_CONFIG=${XDEBUG_CONFIG}
+PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+USER=${USER}
+USER_ID=${USER_ID}
+SERVICES=\"${SERVICES}\"
+PROJECT_SERVICES=\"${PROJECT_SERVICES[@]}\"
+AVAILABLE_SERVICES=\"${AVAILABLE_SERVICES[@]}\"
+" > ${ENV_FILE_PATH}
 
 # запускаем команды поочереди, в том порядке в котором запросил пользователь
 if [[ "${#PROCESS_LIST[@]}" > 0 ]]; then
@@ -309,7 +343,6 @@ else
     echo
     echo "      ./configure -h, --help, help"
     echo
-    exit 0
 fi
 
 exit 0
